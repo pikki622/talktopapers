@@ -15,11 +15,7 @@ def search(df, query, n=3, pprint=True):
     )
     df["similarity"] = df.embeddings.apply(lambda x: cosine_similarity(x, query_embedding))
 
-    results = (
-        df.sort_values("similarity", ascending=False)
-        
-    )
-    return results
+    return df.sort_values("similarity", ascending=False)
 
 @st.cache(allow_output_mutation=True)
 def process_file(file):
@@ -27,16 +23,11 @@ def process_file(file):
     # Process the file and filter
     with st.spinner(text='Procesing your paper'):
         paper_text = parse_paper(file)
-        # Apply some filter
-        filtered_paper_text = []
-        for row in paper_text:
-            if len(row['text']) < 30:
-                continue
-            filtered_paper_text.append(row)
+        filtered_paper_text = [row for row in paper_text if len(row['text']) >= 30]
         paper_df = pd.DataFrame(filtered_paper_text)
-        
+
     # Calculate embeddings
-    
+
     with st.spinner(text='Calculate embeddings'):
         embedding_model = "text-embedding-ada-002"
         embeddings = paper_df.text.apply([lambda x: get_embedding(x, engine=embedding_model)])
@@ -49,11 +40,11 @@ check_folders()
 if __name__ == '__main__':
     
     st.title('Ask the Paper 📚')
-    
+
     source = ("PDF", "ARXIV LINK")
     source_index = st.sidebar.selectbox("Select Input type", range(
         len(source)), format_func=lambda x: source[x])
-    
+
     if source_index == 0:
         uploaded_file = st.sidebar.file_uploader(
             "Load File", type=['pdf'])
@@ -64,19 +55,18 @@ if __name__ == '__main__':
                     w.write(uploaded_file.getvalue())
 
             paper = process_file(f'data/pdf/{uploaded_file.name}')
-            
+
             st.subheader('Now You are ready to ask to your paper')
-            
-            text_input = st.text_input(
-            "Ask your paper here and hit enter 👇",
-            label_visibility='visible',
-            placeholder='Your Question',
-            )
-            if text_input:
+
+            if text_input := st.text_input(
+                "Ask your paper here and hit enter 👇",
+                label_visibility='visible',
+                placeholder='Your Question',
+            ):
                 print(text_input)
                 results = search(paper, text_input, n=3)
                 st.write(results.iloc[0]['text'])
-                
+
 
     else:
         text_input = st.sidebar.text_input(
@@ -89,17 +79,17 @@ if __name__ == '__main__':
             st.sidebar.write("You entered: ", text_input)
             with st.spinner(text='Procesing your link...'):
                 download_arxiv(text_input)
-                
+
             paper = process_file('data/pdf/downloaded-paper.pdf')
-            
+
             st.subheader('Now You are ready to ask to your paper')
-            
+
             text_input = st.text_input(
             "Ask your paper here and hit enter 👇",
             label_visibility='visible',
             placeholder='Your Question',
             )
-            if text_input:
-                print(text_input)
-                results = search(paper, text_input, n=3)
-                st.write(results.iloc[0]['text'])
+        if text_input:
+            print(text_input)
+            results = search(paper, text_input, n=3)
+            st.write(results.iloc[0]['text'])
